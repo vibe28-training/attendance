@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'oneul-attendance-v1';
 const statuses = ['present', 'late', 'early', 'absent', 'unset'];
+const periodCount = 7;
 const statusNames = { present: '출석', late: '지각', early: '조퇴', absent: '결석', unset: '미확인' };
 const sampleNames = ['김민준','이서연','박지호','최예준','정하은','강도윤','조유나','윤서준','장하린','임시우','한지민','오지안','서준혁','신예은','권도현','황수아','안지후','송채원','전민재','홍서윤','문유찬','양다은','배현우','백소율'];
 const colors = ['#eef2ff','#eaf8f2','#fff3e8','#f5efff','#fff0f1','#eaf5fb'];
@@ -30,7 +31,7 @@ function createInitialData() {
       }
     });
   }
-  return { students, records };
+  return { students, records, periodAttendance: {}, reasons: {} };
 }
 
 function loadData() {
@@ -38,7 +39,11 @@ function loadData() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const data = JSON.parse(stored);
-      if (data && typeof data === 'object' && Array.isArray(data.students) && data.records && typeof data.records === 'object') return data;
+      if (data && typeof data === 'object' && Array.isArray(data.students) && data.records && typeof data.records === 'object') {
+        data.periodAttendance ||= {};
+        data.reasons ||= {};
+        return data;
+      }
     }
   } catch (error) {
     console.warn('출결 저장 데이터를 불러오지 못했습니다.', error);
@@ -66,6 +71,20 @@ function setStatus(studentId, status) {
   data.records[selectedDate][studentId] = status;
   persist();
   render();
+}
+function getPeriodMarks(studentId, date = selectedDate) {
+  return data.periodAttendance[date]?.[studentId] || Array(periodCount).fill(false);
+}
+function setPeriodMark(studentId, period) {
+  data.periodAttendance[selectedDate] ||= {};
+  const marks = [...getPeriodMarks(studentId)];
+  marks[period] = !marks[period];
+  data.periodAttendance[selectedDate][studentId] = marks;
+  persist();
+  renderRows();
+}
+function getReason(studentId, date = selectedDate) {
+  return data.reasons[date]?.[studentId] || '';
 }
 function countsForDate(date) {
   const result = { present: 0, late: 0, early: 0, absent: 0, unset: 0 };
@@ -106,11 +125,14 @@ function renderRows() {
   rowsNode.innerHTML = visible.map((student) => {
     const status = getStatus(student.id);
     const monthly = studentMonthCounts(student.id);
+    const periodMarks = getPeriodMarks(student.id);
+    const periodCells = periodMarks.map((marked, period) => `<td class="period-cell"><button type="button" class="period-mark ${marked ? 'marked' : ''}" data-student="${escapeHtml(student.id)}" data-period="${period}" aria-label="${escapeHtml(student.name)} ${period + 1}교시 ${marked ? '출석 표시됨' : '출석 표시 안 됨'}" aria-pressed="${marked}">${marked ? '/' : ''}</button></td>`).join('');
     const options = statuses.map((option) => `<option value="${option}" ${option === status ? 'selected' : ''}>${statusNames[option]}</option>`).join('');
     return `<tr>
       <td class="student-number">${String(student.number).padStart(2, '0')}</td>
       <td><div class="student-cell"><span class="student-initial" style="background:${colors[(student.number - 1) % colors.length]}">${student.name[0]}</span>${escapeHtml(student.name)}</div></td>
-      <td><select class="status-select status-${status}" aria-label="${escapeHtml(student.name)} 출결 상태" data-student="${escapeHtml(student.id)}">${options}</select></td>
+      <td><select class="status-select status-${status}" aria-label="${escapeHtml(student.name)} 출결 상태" data-student="${escapeHtml(student.id)}">${options}</select></td>${periodCells}
+      <td><input class="reason-input" type="text" maxlength="120" placeholder="사유 입력" aria-label="${escapeHtml(student.name)} 출결 사유" data-student="${escapeHtml(student.id)}" value="${escapeHtml(getReason(student.id))}"></td>
       <td class="count-cell count-highlight">${monthly.present}</td><td class="count-cell">${monthly.late}</td><td class="count-cell">${monthly.early}</td><td class="count-cell">${monthly.absent}</td>
     </tr>`;
   }).join('');
@@ -193,9 +215,27 @@ rowsNode.addEventListener('change', (event) => {
   const select = event.target.closest('.status-select');
   if (select) setStatus(select.dataset.student, select.value);
 });
+rowsNode.addEventListener('click', (event) => {
+  const mark = event.target.closest('.period-mark');
+  if (mark) setPeriodMark(mark.dataset.student, Number(mark.dataset.period));
+});
+rowsNode.addEventListener('input', (event) => {
+  const input = event.target.closest('.reason-input');
+  if (!input) return;
+  data.reasons[selectedDate] ||= {};
+  data.reasons[selectedDate][input.dataset.student] = input.value;
+  persist();
+});
 document.querySelector('#export-button').addEventListener('click', () => {
-  const headers = ['날짜','번호','학생 이름','출결 상태'];
-  const lines = [headers, ...data.students.map((student) => [selectedDate, student.number, student.name, statusNames[getStatus(student.id)]])];
+  const headers = ['날짜','번호','학생 이름','출결 상태', ...Array.from({ length: periodCount }, (_, index) => `${index + 1}교시`), '사유'];
+  const lines = [headers, ...data.students.map((student) => [
+    selectedDate,
+    student.number,
+    student.name,
+    statusNames[getStatus(student.id)],
+    ...getPeriodMarks(student.id).map((marked) => marked ? '/' : ''),
+    getReason(student.id)
+  ])];
   const csv = '\uFEFF' + lines.map((line) => line.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');

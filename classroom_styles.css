@@ -126,6 +126,13 @@ td { height: 37px; padding: 4px 10px; border-top: 1px solid #f2f4f7; color: #768
 .status-select { min-width: 70px; padding: 4px 6px; border: 1px solid transparent; border-radius: 5px; outline: none; font-size: 8px; cursor: pointer; }
 .status-select:focus { border-color: #bdcaff; }
 .status-present { color: #2d9c72; background: #eaf8f1; }.status-late { color: #c28b2e; background: #fff5e4; }.status-early { color: #5d74d4; background: #eef1ff; }.status-absent { color: #d66b64; background: #fff0ef; }.status-unset { color: #8993a2; background: #f2f4f7; }
+.period-cell { padding: 3px 4px; text-align: center; }
+.period-mark { width: 25px; height: 27px; padding: 0; border: 1px solid #e8ebf1; border-radius: 6px; color: #4a70e6; background: #fff; font-size: 17px; font-weight: 700; line-height: 1; }
+.period-mark:hover { border-color: #aab9f5; background: #f5f7ff; }
+.period-mark.marked { border-color: #dce4ff; background: #eef2ff; }
+.reason-input { width: 126px; height: 28px; padding: 0 7px; border: 1px solid #e8ebf1; border-radius: 6px; outline: none; color: #536074; font-size: 9px; }
+.reason-input:focus { border-color: #aab9f5; }
+.reason-input::placeholder { color: #aab2bf; }
 .empty-state { padding: 32px 10px; color: #9aa3b0; font-size: 10px; text-align: center; }
 .table-footer { display: flex; justify-content: space-between; align-items: center; padding: 11px 18px; border-top: 1px solid #f0f2f6; color: #9ba4b0; font-size: 9px; }
 .text-button { border: 0; color: #5574df; background: none; font-size: 9px; font-weight: 600; }
